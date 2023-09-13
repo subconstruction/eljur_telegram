@@ -2,7 +2,7 @@
 
 
 ℹ️ Authorization syntax is /auth {username} {password}
-⚠️ By default, applications will authorize users by the *kip* prefix
+⚠️ By default, applications will authorize users by the {kip} prefix
 
 
 ![9AyX3S7ksU8](https://github.com/subconstruction/eljur_telegram/assets/144381160/6bfc44c7-a1ad-4db2-9408-d5bf3db7aa46)
