@@ -1,7 +1,7 @@
 🌌 The project is completely done, all you have to do is insert your telegram token at Sample/Program.cs [at 33 line]
 
 
-ℹ️ Authorization syntax is /auth {username} {password}
+ℹ️ Authorization syntax is /auth {username} {password}\n
 ⚠️ By default, applications will authorize users by the {kip} prefix
 
 
