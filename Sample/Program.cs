@@ -81,21 +81,21 @@ namespace Test
                 await Task.Delay(1000);
                 long chatId = Convert.ToInt64(Path.GetFileNameWithoutExtension(file));
                 string cachePath = $"db/cache/{chatId}.txt";
-                bool cacheExists = File.Exists(cachePath);
+                bool cacheExists = System.IO.File.Exists(cachePath);
 
                 var timeTable = ParseTimeTable(chatId);
                 string encryptedData = EncryptData(JsonConvert.SerializeObject(timeTable));
 
                 if (!cacheExists)
                 {
-                    File.WriteAllText(cachePath, encryptedData);
+                    System.IO.File.WriteAllText(cachePath, encryptedData);
                     continue;
                 }
 
-                var lastContent = JsonConvert.DeserializeObject<Dictionary<string, object>>(DecryptData(File.ReadAllText(cachePath)));
+                var lastContent = JsonConvert.DeserializeObject<Dictionary<string, object>>(DecryptData(System.IO.File.ReadAllText(cachePath)));
                 await CompareAndNotifyChangesAsync(chatId, timeTable, lastContent);
 
-                File.WriteAllText(cachePath, encryptedData);
+                System.IO.File.WriteAllText(cachePath, encryptedData);
             }
         }
 
@@ -198,14 +198,14 @@ namespace Test
             try
             {
                 string filePath = $"db/{chatId}.txt";
-                if (!File.Exists(filePath))
+                if (!System.IO.File.Exists(filePath))
                 {
                     BotClient.SendTextMessageAsync(chatId, "👤 User not detected! Authorize using the following syntax:\n\n/auth <username> <password>");
                     return new();
                 }
 
                 var parser = new HtmlParser();
-                var userData = JsonConvert.DeserializeObject<UserData>(File.ReadAllText(filePath));
+                var userData = JsonConvert.DeserializeObject<UserData>(System.IO.File.ReadAllText(filePath));
 
                 string journalBody = GetRequest("https://kip.eljur.ru/?show=home", userData).Result;
                 var document = parser.ParseDocument(journalBody);
@@ -342,6 +342,10 @@ namespace Test
                         await SendWeekScheduleAsync(bot, chatId, token);
                         break;
                     default:
+                        if (message.Text.Contains("/auth", StringComparison.CurrentCulture))
+                        {
+                            await HandleAuthenticationAsync(bot, message, token);
+                        }
                         await bot.SendTextMessageAsync(chatId, "⚠️ Your message couldn't be handled! Ensure the request is correct or you're authorized with /auth <username> <password>", cancellationToken: token);
                         break;
                 }
@@ -375,7 +379,7 @@ namespace Test
             };
 
             string json = JsonConvert.SerializeObject(userData);
-            File.WriteAllText($"db/{chatId}.txt", json);
+            System.IO.File.WriteAllText($"db/{chatId}.txt", json);
 
             await bot.SendTextMessageAsync(chatId, $"💫 You have been added to the database. If something didn't work, check your username and password.\n\nLinked to: {authData[0]}", cancellationToken: token);
         }
