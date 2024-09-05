@@ -251,7 +251,7 @@ namespace Test
 
         private static Dictionary<string, object> ParseLesson(IElement lessonElement)
         {
-            string lessonNum = lessonElement.QuerySelector(".dnevnik-lesson__number").TextContent;
+            string lessonNum = lessonElement.QuerySelector(".dnevnik-lesson__number").TextContent.Trim();
             string lessonName = lessonElement.QuerySelector(".js-rt_licey-dnevnik-subject").TextContent.Trim();
             string lessonTime = lessonElement.QuerySelector(".dnevnik-lesson__time").TextContent.Trim();
 
@@ -260,7 +260,7 @@ namespace Test
 
             return new Dictionary<string, object>
             {
-                { "day", lessonNum },
+                { "ord", lessonNum },
                 { "name", lessonName },
                 { "time", lessonTime },
                 { "hometask", lessonHomeTask },
@@ -273,12 +273,20 @@ namespace Test
         private static string ExtractMarks(IElement lessonElement)
         {
             var marks = lessonElement.QuerySelectorAll(".dnevnik-mark");
-            return marks.Length switch
+
+            if (marks.Length == 0)
             {
-                1 => marks[0].TextContent.Trim(),
-                2 => $"{marks[0].TextContent.Trim()}/{marks[1].TextContent.Trim()}".Trim(),
-                _ => "Нет"
-            };
+                return "Нет";
+            }
+
+            var marksList = new List<string>();
+
+            foreach (var mark in marks)
+            {
+                marksList.Add(mark.TextContent.Trim());
+            }
+
+            return string.Join(" | ", marksList);
         }
 
         private static string ExtractHomeTask(IElement lessonElement, out string attachName, out string attachContent)
@@ -324,6 +332,14 @@ namespace Test
                 var chatId = message.Chat.Id;
                 Console.WriteLine($"Handled new message from {chatId}");
 
+                DateTime today = DateTime.Now;
+                int todayDayIndex = (int)today.DayOfWeek - 1;
+                if (todayDayIndex < 0) todayDayIndex = 6;
+
+                DateTime tomorrow = today.AddDays(1);
+                int tomorrowDayIndex = (int)tomorrow.DayOfWeek - 1;
+                if (tomorrowDayIndex < 0) tomorrowDayIndex = 6;
+
                 switch (message.Text)
                 {
                     case "/start":
@@ -333,10 +349,10 @@ namespace Test
                         await HandleAuthenticationAsync(bot, message, token);
                         break;
                     case "📅 Расписание на завтра":
-                        await SendScheduleAsync(bot, chatId, token, 1);
+                        await SendScheduleAsync(bot, chatId, token, tomorrowDayIndex);
                         break;
                     case "📅 Расписание на сегодня":
-                        await SendScheduleAsync(bot, chatId, token, 0);
+                        await SendScheduleAsync(bot, chatId, token, todayDayIndex);
                         break;
                     case "📅 Текущая неделя":
                         await SendWeekScheduleAsync(bot, chatId, token);
@@ -391,6 +407,8 @@ namespace Test
                 var timeTable = ParseTimeTable(chatId);
                 string message = BuildScheduleMessage(timeTable, targetDay, out var buttons);
 
+                if (message is null) return;
+
                 if (buttons.Any())
                 {
                     await bot.SendTextMessageAsync(chatId, message, replyMarkup: new InlineKeyboardMarkup(buttons), cancellationToken: token);
@@ -412,6 +430,8 @@ namespace Test
             for (int dayIndex = 0; dayIndex < timeTable.Count; dayIndex++)
             {
                 string message = BuildScheduleMessage(timeTable, dayIndex, out var buttons);
+                if (message is null) continue;
+
                 if (buttons.Any())
                 {
                     await bot.SendTextMessageAsync(chatId, message, replyMarkup: new InlineKeyboardMarkup(buttons), cancellationToken: token);
@@ -432,10 +452,16 @@ namespace Test
                 return string.Empty;
 
             string message = $"🗓️ {daysOfWeek[dayIndex]}\n\n";
+            bool isDayAvaliable = dayDict.Keys.Count > 0;
+
+            if (!isDayAvaliable) return null;
+
             foreach (var key in dayDict.Keys)
             {
                 if (!dayDict.TryGetValue(key, out var lessonObj) || !(lessonObj is Dictionary<string, object> lessonDict))
                     continue;
+
+                string ord = lessonDict.ContainsKey("ord") ? lessonDict["ord"].ToString() : "N/A";
 
                 string homeTask = lessonDict["hometask"].ToString().Trim();
                 string[] attachNames = lessonDict["attach_name"].ToString().Split(',');
@@ -460,7 +486,7 @@ namespace Test
                     }
                 }
 
-                message += $"🎓 {lessonDict["ord"]}{lessonDict["name"]} [{lessonDict["time"]}] " +
+                message += $"🎓 {ord} {lessonDict["name"]} [{lessonDict["time"]}] " +
                            $"\n✍🏻 Д/З: {homeTask}\n📍 Оценка(и): {lessonDict["mark"]}\n\n";
             }
 
